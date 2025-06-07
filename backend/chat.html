@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chat Distribuido</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f4f4f4; }
+    #chat { display: none; }
+    #messages { height: 300px; overflow-y: scroll; background: #fff; padding: 10px; border: 1px solid #ccc; margin-bottom: 10px; }
+    input, button { padding: 5px; margin: 5px; }
+  </style>
+</head>
+<body>
+  <h2>Chat Distribuido</h2>
+
+  <div id="login">
+    <input id="username" placeholder="Tu nombre" />
+    <input id="room" placeholder="Sala" />
+    <button onclick="joinChat()">Entrar</button>
+  </div>
+
+  <div id="chat">
+    <div id="messages"></div>
+    <input id="messageInput" placeholder="Escribe un mensaje" />
+    <button onclick="sendMessage()">Enviar</button>
+  </div>
+
+  <script>
+    const socket = io("http://localhost:3000"); // Cambia si tu backend corre en otro puerto
+
+    let username = "";
+    let room = "";
+
+    function joinChat() {
+      username = document.getElementById("username").value;
+      room = document.getElementById("room").value;
+      if (!username || !room) return alert("Faltan datos");
+
+      // Registro rápido
+      fetch("http://localhost:3000/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username })
+      });
+
+      document.getElementById("login").style.display = "none";
+      document.getElementById("chat").style.display = "block";
+
+      socket.emit("join", { username, room });
+
+      socket.on("history", (messages) => {
+        const messagesDiv = document.getElementById("messages");
+        messages.forEach((msg) => {
+          addMessage(msg.sender, msg.content);
+        });
+      });
+
+      socket.on("message", (msg) => {
+        addMessage(msg.sender, msg.content);
+      });
+    }
+
+    function sendMessage() {
+      const input = document.getElementById("messageInput");
+      const content = input.value;
+      if (content.trim() === "") return;
+
+      socket.emit("message", { room, username, content });
+      input.value = "";
+    }
+
+    function addMessage(sender, content) {
+      const messagesDiv = document.getElementById("messages");
+      const msg = document.createElement("div");
+      msg.textContent = `${sender}: ${content}`;
+      messagesDiv.appendChild(msg);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+  </script>
+</body>
+</html>
